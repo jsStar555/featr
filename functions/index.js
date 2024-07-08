@@ -1135,7 +1135,7 @@ exports.createAccountLink = onRequest(async (req, res) => {
     const {accountId} = req.body;
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: 'https://example.com/reauth',
+      refresh_url: 'https://createaccountlink-7tciwcgjna-uc.a.run.app',
       return_url: 'https://example.com/return',
       type: 'account_onboarding',
     });
