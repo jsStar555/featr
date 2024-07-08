@@ -6,3 +6,5 @@ functions/certFile.json
 functions/firebase-debug.log
 functions/data-path
 ios/featrrrnew/GoogleService-Info.plist
+.firebaserc
+firebase.json
