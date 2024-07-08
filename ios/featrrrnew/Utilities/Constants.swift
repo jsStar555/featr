@@ -28,8 +28,7 @@ struct FirebaseFunctions {
     static let CONFIRM_REFUND_REQUEST = "https://confirmrefundrequest-7tciwcgjna-uc.a.run.app"
     static let CREATE_PAYMENT_INTENT = "https://createpaymentintent-7tciwcgjna-uc.a.run.app"
     static let CREATE_PENDING_PAYMENT_REQUEST = "https://creatependingpaymentrequest-7tciwcgjna-uc.a.run.app"
-//    static let CREATE_SETUP_INTENT = "https://createsetupintent-7tciwcgjna-uc.a.run.app"
-    static let CREATE_SETUP_INTENT = "http://127.0.0.1:5001/featchr-113f6/us-central1/createSetupIntent"
+    static let CREATE_SETUP_INTENT = "https://createsetupintent-7tciwcgjna-uc.a.run.app"
     static let FETCH_EPHEMERIAL = "https://customer-7tciwcgjna-uc.a.run.app"
     static let GET_ALL_PENDING_PAYMENTS = "https://getallpendingpayments-7tciwcgjna-uc.a.run.app"
     static let FETCH_DEFAULT_PAYMENT_METHODS = "https://fetchdefaultpaymentmethod-7tciwcgjna-uc.a.run.app"
@@ -37,11 +36,10 @@ struct FirebaseFunctions {
     static let STRIPE_WEBHOOK = "https://stripewebhook-7tciwcgjna-uc.a.run.app"
     static let UPDATE_DEFAULT_PAYMENT_METHOD = "https://updatedefaultpaymentmethod-7tciwcgjna-uc.a.run.app"
     static let UPDATE_PAYMENT_STATUS = "https://updatepaymentstatus-7tciwcgjna-uc.a.run.app"
-//    static let DEFAULT_PAYMENT = "https://defaultpayment-7tciwcgjna-uc.a.run.app"
-    static let DEFAULT_PAYMENT = "http://127.0.0.1:5001/featchr-113f6/us-central1/defaultPayment"
-    static let CREATE_CONNECT_ACCOUNT = "http://127.0.0.1:5001/featchr-113f6/us-central1/createConnectAccount"
-    static let CREATE_ACCOUNT_LINK = "http://127.0.0.1:5001/featchr-113f6/us-central1/createAccountLink"
-    static let FETCH_CONNECT_ACCOUNT = "http://127.0.0.1:5001/featchr-113f6/us-central1/fetchConnectAccount"
+    static let DEFAULT_PAYMENT = "https://defaultpayment-7tciwcgjna-uc.a.run.app"
+    static let CREATE_CONNECT_ACCOUNT = "https://createconnectaccount-7tciwcgjna-uc.a.run.app"
+    static let CREATE_ACCOUNT_LINK = "https://createaccountlink-7tciwcgjna-uc.a.run.app"
+    static let FETCH_CONNECT_ACCOUNT = "https://fetchconnectaccount-7tciwcgjna-uc.a.run.app"
     
 }
 

@@ -195,6 +195,9 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                 }
             }
             Button {
+                if(viewModel.connectedAccountState == .connected) {
+                    return
+                }
                 Task {
                    let response = await viewModel.createPayoutAccount()
                     if let response = response {
@@ -211,6 +214,7 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                             ProgressView()
                         default:
                             Text("Connect Account")
+                            
                     }
                     Spacer()
                 }

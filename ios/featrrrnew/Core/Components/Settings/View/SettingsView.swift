@@ -201,6 +201,10 @@ struct SettingsView: View {
                     }
                 
                 Button {
+                    if(viewModel.connectedAccountState == .connected) {
+                        return
+                    }
+                    viewModel.getConnectAccount()
                     Task {
                         let response = await viewModel.createPayoutAccount()
                         if let response = response {
