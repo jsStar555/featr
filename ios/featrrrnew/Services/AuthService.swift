@@ -46,7 +46,7 @@ class AuthService: ObservableObject {
     }
     
     @MainActor
-    func createUser(email: String, password: String, username: String, fullname: String) async throws {
+    func createUser(email: String, password: String, username: String, fullname: String, connectAccountId: String) async throws {
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
             self.userSession = result.user
@@ -56,6 +56,7 @@ class AuthService: ObservableObject {
                 "email": email,
                 "username": username,
                 "fullname": fullname,
+                "connectAccountId": connectAccountId,
                 "id": result.user.uid
             ]
             

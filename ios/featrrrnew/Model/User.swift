@@ -26,6 +26,7 @@ struct User: Identifiable, Codable {
     var profileImageUrls: [String] = []
     var fullname: String?
     var bio: String?
+    var connectAccountId: String?
     var isFollowed: Bool? = false
     var fcmTokens: [String]?
     
@@ -40,6 +41,7 @@ struct User: Identifiable, Codable {
         case profileImageUrl //Backwards compatability with single image
         case fullname
         case bio
+        case connectAccountId
         case isFollowed
         case fcmTokens
     }
@@ -49,12 +51,14 @@ struct User: Identifiable, Codable {
          email: String? = nil,
          profileImageUrls: [String] = [],
          fullname: String? = nil,
+         connectAccountId: String? = nil,
          bio: String? = nil,
          isFollowed: Bool? = nil) {
         
         self.uid = uid
         self.optionalUsername = username
         self.email = email
+        self.connectAccountId = connectAccountId
         self.profileImageUrls = profileImageUrls
         self.fullname = fullname
         self.bio = bio
@@ -76,6 +80,7 @@ struct User: Identifiable, Codable {
             profileImageUrls = []
         }
         fullname = try container.decodeIfPresent(String.self, forKey: .fullname)
+        connectAccountId = try container.decodeIfPresent(String.self, forKey: .connectAccountId)
         bio = try container.decodeIfPresent(String.self, forKey: .bio)
         isFollowed = try container.decodeIfPresent(Bool.self, forKey: .isFollowed) ?? false
         fcmTokens = try container.decodeIfPresent([String].self, forKey: .fcmTokens)
@@ -88,6 +93,7 @@ struct User: Identifiable, Codable {
         try container.encodeIfPresent(email, forKey: .email)
         try container.encodeIfPresent(profileImageUrls, forKey: .profileImageUrls)
         try container.encodeIfPresent(fullname, forKey: .fullname)
+        try container.encodeIfPresent(connectAccountId, forKey: .connectAccountId)
         try container.encodeIfPresent(bio, forKey: .bio)
         try container.encodeIfPresent(isFollowed, forKey: .isFollowed)
         try container.encodeIfPresent(fcmTokens, forKey: .fcmTokens)

@@ -41,13 +41,28 @@ enum SettingsItemModel: Int, Identifiable, Hashable, CaseIterable {
 enum PaymentState {
     case noPaymentMethod, paymentOnFile, paymentError, paymentLoading
 }
+
+enum ConnectAccountState {
+    case accountInitial, accountSuccess, accountError, accountLoading
+}
+
+enum ConnectedAccountState {
+    case connected, noAccountConnected, connectError, connectLoading
+}
 class SettingsViewModel: ObservableObject {
     @Published var customerSheet: CustomerSheet?
     @Published var paymentState: PaymentState = .paymentLoading
+    @Published var connectAccountState: ConnectAccountState = .accountInitial
+    @Published var connectAccount: ConnectAccountResponse?
+    var messageError: String = ""
+    @Published var showMessageError = false
+    @Published var accountCompleted = false
+    @Published var connectedAccountState: ConnectedAccountState = .connectLoading
 
     init() {
         getCustomerSheet()
         getDefaultPayment() //Load the initial payment method to populate with "default" (no payment, error, payment)
+        getConnectAccount()
     }
     func getCustomerSheet() {
         if let user = AuthService.shared.user {
@@ -79,23 +94,71 @@ class SettingsViewModel: ObservableObject {
           }
       }
     
-    func getDefaultPayment() {
+   
+    func getConnectAccount() {
         if let user = AuthService.shared.user {
-            PaymentService.standard.getDefaultPayment(user:user) {result in
+            PaymentService.standard.getConnectAccount(user:user) {[weak self] result in
                 do {
                     let result = try result.get()
-                    if result == nil {
-                        self.paymentState = .noPaymentMethod
+                    if result == nil || result == false {
+                        self?.connectedAccountState = .noAccountConnected
                     } else {
-                        self.paymentState = .paymentOnFile
+                        self?.accountCompleted = result ?? false
+                        self?.connectedAccountState = .connected
                     }
                 } catch {
-                    self.paymentState = .paymentError
+                    self?.connectedAccountState = .connectError
                 }
                 
             }
         }
         
+    }
+    
+    
+    func getDefaultPayment() {
+        if let user = AuthService.shared.user {
+            PaymentService.standard.getDefaultPayment(user:user) {[weak self] result in
+                do {
+                    let result = try result.get()
+                    if result == nil {
+                        self?.paymentState = .noPaymentMethod
+                    } else {
+                        self?.paymentState = .paymentOnFile
+                    }
+                } catch {
+                    self?.paymentState = .paymentError
+                }
+                
+            }
+        }
+        
+    }
+    
+    func createPayoutAccount() async -> String? {
+        self.connectAccountState = .accountLoading
+        if let user = AuthService.shared.user {
+            let result = await PaymentService.standard.createAccountLink(user: user)
+            do {
+                let linkUrl = try result.get()
+                self.connectAccountState = .accountSuccess
+                return linkUrl
+            } catch let error as PayoutAccoutErrorType {
+                self.connectAccountState = .accountError
+                self.showAlert(error.localizedDescription())
+            } catch {
+                self.connectAccountState = .accountError
+                self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
+            }
+        } else {
+            self.showAlert("Your user account seems to be missing information.  Try to log out and log back in or contact support for further assistance")
+        }
+        return nil
+    }
+    
+    private func showAlert(_ msg: String) {
+        messageError = msg
+        showMessageError = true
     }
       
     
@@ -105,6 +168,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showingCustomerSheet = false
     @ObservedObject var viewModel = SettingsViewModel()
+    @State private var linkUrl: URL?
     
     var body: some View {
         VStack {
@@ -135,6 +199,40 @@ struct SettingsView: View {
                             
                         }
                     }
+                
+                Button {
+                    Task {
+                        let response = await viewModel.createPayoutAccount()
+                        if let response = response {
+                            print(response)
+                            linkUrl = URL(string: response)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        switch(viewModel.connectAccountState) {
+                            case .accountLoading:
+                                ProgressView()
+                            default:
+                                Image(systemName: "person.crop.circle.fill")
+                        }
+                        Text("Payout Settings")
+                        
+                        
+                        Spacer()
+                        switch (viewModel.connectedAccountState) {
+                            case .connectLoading:
+                                ProgressView()
+                            case .connectError:
+                                Chip(text: "Error", style: .cancel)
+                            case .noAccountConnected:
+                                Chip(text: "No Account Connected", style: .cancel)
+                            case .connected:
+                                Chip(text: "Account Connected", style: .success)
+                        }
+                        
+                    }
+                }
 
                 Button {
                     print("Toggle the Dark Mode")
@@ -168,9 +266,31 @@ struct SettingsView: View {
                 VStack{}.customerSheet(
                     isPresented: $showingCustomerSheet,
                     customerSheet: sheet,
-                    onCompletion: viewModel.onCompletion)
+                    onCompletion: viewModel.onCompletion
+                )
             }
-        }.navigationTitle("Settings")
+            
+        }
+        .navigationTitle("Settings")
+        .sheet(isPresented: $linkUrl.mappedToBool(), onDismiss: {
+            linkUrl = nil
+        }) {
+            SafariWebView(url: linkUrl!)
+                .ignoresSafeArea()
+        }
+        .onAppear {
+            viewModel.getConnectAccount()
+        }
+        .alert("Validation Error", isPresented: $viewModel.showMessageError) {
+                Button("Dismiss") {
+                    viewModel.showMessageError = false
+                }
+            } message: {
+                HStack {
+                    Text(viewModel.messageError)
+                    Spacer()
+                }
+            }
     }
 }
 

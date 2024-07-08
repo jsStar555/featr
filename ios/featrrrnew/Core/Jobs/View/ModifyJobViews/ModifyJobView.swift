@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhotosUI
+import SafariServices
 
 
 
@@ -16,6 +17,7 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
     @State var showingCustomerSheet = false
     @StateObject var viewModel: ModifyJobViewModel
     @Binding var showingSelfAsPopup: Bool
+    @State private var linkUrl: URL?
     
     @ViewBuilder
     private var imageSelector: some View {
@@ -132,6 +134,7 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
     private var paymentButton: some View {
         VStack {
             Text("Payment")
+            customBankAccountButton
             HStack {
                 Text("*CARD").font(Style.font.body2).foregroundStyle(Color.lightBackground)
                 Spacer()
@@ -164,6 +167,50 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                         }
                         
                         
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(Color.field)
+                .cornerRadius(.cornerS)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var customBankAccountButton: some View {
+        VStack {
+            HStack {
+                Text("*PAYOUT ACCOUNT").font(Style.font.body2).foregroundStyle(Color.lightBackground)
+                Spacer()
+                switch (viewModel.connectedAccountState) {
+                    case .connectLoading:
+                        ProgressView()
+                    case .connectError:
+                        Chip(text: "Error", style: .cancel)
+                    case .noAccountConnected:
+                        Chip(text: "No Account Connected", style: .cancel)
+                    case .connected:
+                        Chip(text: "Account Connected", style: .success)
+                }
+            }
+            Button {
+                Task {
+                   let response = await viewModel.createPayoutAccount()
+                    if let response = response {
+                        print(response)
+                        linkUrl = URL(string: response)
+                    }
+                    
+                }
+            } label: {
+                HStack {
+                    Spacer()
+                    switch(viewModel.connectAccountState) {
+                        case .accountLoading:
+                            ProgressView()
+                        default:
+                            Text("Connect Account")
                     }
                     Spacer()
                 }
@@ -215,6 +262,7 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                     .scrollIndicators(.never)
                 
                 customerSheetPopup
+                
                 
                 if viewModel.isUploading {
                     loadingOverlay
@@ -268,6 +316,13 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                 }
                 .onAppear {
                     viewModel.getDefaultPayment()
+                    viewModel.getConnectAccount()
+                }
+                .fullScreenCover(isPresented: $linkUrl.mappedToBool(), onDismiss: {
+                    linkUrl = nil
+                }) {
+                    SafariWebView(url: linkUrl!)
+                        .ignoresSafeArea()
                 }
                 .alert("Validation Error", isPresented: $viewModel.showMessageError) {
                     Button("Dismiss") {
@@ -283,4 +338,16 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
     }
     
     
+}
+
+struct SafariWebView: UIViewControllerRepresentable {
+    let url: URL
+    
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        
+    }
 }

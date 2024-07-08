@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		20034B2E2C09909500045F7C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 20034B2D2C09909500045F7C /* GoogleService-Info.plist */; };
+		3365EDDA2C3BB6BF00098F67 /* Binding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3365EDD92C3BB6BF00098F67 /* Binding.swift */; };
 		3F3331652A4DEF6A00ABB644 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3331642A4DEF6A00ABB644 /* LoginView.swift */; };
 		3F3331672A4DF71C00ABB644 /* AddEmailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3331662A4DF71C00ABB644 /* AddEmailView.swift */; };
 		3F33316C2A4DFE8800ABB644 /* CreateUserNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F33316B2A4DFE8800ABB644 /* CreateUserNameView.swift */; };
@@ -168,6 +169,7 @@
 
 /* Begin PBXFileReference section */
 		20034B2D2C09909500045F7C /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		3365EDD92C3BB6BF00098F67 /* Binding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Binding.swift; sourceTree = "<group>"; };
 		3F3331642A4DEF6A00ABB644 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		3F3331662A4DF71C00ABB644 /* AddEmailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEmailView.swift; sourceTree = "<group>"; };
 		3F33316B2A4DFE8800ABB644 /* CreateUserNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateUserNameView.swift; sourceTree = "<group>"; };
@@ -517,6 +519,7 @@
 				CB19B7B62BA9FE5100465D10 /* View.swift */,
 				CBCFB5922BADE6B2005F146C /* Text.swift */,
 				CBCFB5942BADE7BE005F146C /* UIApplication.swift */,
+				3365EDD92C3BB6BF00098F67 /* Binding.swift */,
 			);
 			path = Extenstions;
 			sourceTree = "<group>";
@@ -1375,6 +1378,7 @@
 				3F3331802A4E261700ABB644 /* JobPost.swift in Sources */,
 				55680B1E2B027E7B0072FEC0 /* PaymentView.swift in Sources */,
 				3F686EB52A4BCDC30014FD63 /* JobRow.swift in Sources */,
+				3365EDDA2C3BB6BF00098F67 /* Binding.swift in Sources */,
 				CB73C83A2BC899700084C9E7 /* UploadJobView.swift in Sources */,
 				3F33317E2A4E14F500ABB644 /* CurrentUserProfileView.swift in Sources */,
 				3F7EAE8C2A70E3F40073DBC1 /* CustomInputView.swift in Sources */,
@@ -1527,7 +1531,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"featrrrnew/Preview Content\"";
-				DEVELOPMENT_TEAM = JQ68R6JWAP;
+				DEVELOPMENT_TEAM = LSB725NB5B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = featrrrnew/Info.plist;
@@ -1566,7 +1570,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"featrrrnew/Preview Content\"";
-				DEVELOPMENT_TEAM = JQ68R6JWAP;
+				DEVELOPMENT_TEAM = LSB725NB5B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = featrrrnew/Info.plist;

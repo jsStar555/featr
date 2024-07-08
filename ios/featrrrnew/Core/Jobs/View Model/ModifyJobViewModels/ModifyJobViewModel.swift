@@ -75,6 +75,9 @@ class ModifyJobViewModel: ObservableObject {
     @Published var submissionEnabled = false
     @Published var paymentState: PaymentState = .paymentLoading
     @Published var customerSheet: CustomerSheet?
+    @Published var connectAccountState: ConnectAccountState = .accountInitial
+    @Published var connectedAccountState: ConnectedAccountState = .connectLoading
+    @Published var connectAccount: ConnectAccountResponse?
     
     func setIsUploading(_ val: Bool) {
         DispatchQueue.main.async { [weak self] in
@@ -83,6 +86,7 @@ class ModifyJobViewModel: ObservableObject {
     }
     init() {
         getCustomerSheet()
+        getConnectAccount()
         updateSubmissionEnabled()
     }
     
@@ -125,6 +129,49 @@ class ModifyJobViewModel: ObservableObject {
             self.showAlert("Your user account seems to be missing information.  Try to log out and log back in or contact support for further assistance")
         }
     }
+    
+    func createPayoutAccount() async -> String? {
+        self.connectAccountState = .accountLoading
+        if let user = AuthService.shared.user {
+            let result = await PaymentService.standard.createAccountLink(user: user)
+            do {
+                let linkUrl = try result.get()
+                self.connectAccountState = .accountSuccess
+                return linkUrl
+            } catch let error as PayoutAccoutErrorType {
+                self.connectAccountState = .accountError
+                self.showAlert(error.localizedDescription())
+            } catch {
+                self.connectAccountState = .accountError
+                self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
+            }
+        } else {
+            self.showAlert("Your user account seems to be missing information.  Try to log out and log back in or contact support for further assistance")
+        }
+        return nil
+    }
+    
+    @Published var accountCompleted = false
+    func getConnectAccount() {
+        if let user = AuthService.shared.user {
+            PaymentService.standard.getConnectAccount(user:user) {[weak self] result in
+                do {
+                    let result = try result.get()
+                    if result == nil || result == false {
+                        self?.connectedAccountState = .noAccountConnected
+                    } else {
+                        self?.accountCompleted = result ?? false
+                        self?.connectedAccountState = .connected
+                    }
+                } catch {
+                    self?.connectedAccountState = .connectError
+                }
+                
+            }
+        }
+        
+    }
+    
     private func showAlert(_ msg: String) {
         messageError = msg
         showMessageError = true
@@ -141,6 +188,7 @@ class ModifyJobViewModel: ObservableObject {
               paymentState = .paymentError
           }
       }
+    
     private func allFieldsIncluded() -> Bool {
         return !jobBio.isEmpty && hr != nil && task != nil && storyPost != nil && !city.isEmpty && !state.isEmpty && !country.isEmpty && !category.isEmpty
     }
@@ -154,17 +202,17 @@ class ModifyJobViewModel: ObservableObject {
     @Published var lastFourDigitsPayment: String?
     func getDefaultPayment() {
         if let user = AuthService.shared.user {
-            PaymentService.standard.getDefaultPayment(user:user) {result in
+            PaymentService.standard.getDefaultPayment(user:user) {[weak self] result in
                 do {
                     let result = try result.get()
                     if result == nil {
-                        self.paymentState = .noPaymentMethod
+                        self?.paymentState = .noPaymentMethod
                     } else {
-                        self.lastFourDigitsPayment = result?.last4
-                        self.paymentState = .paymentOnFile
+                        self?.lastFourDigitsPayment = result?.last4
+                        self?.paymentState = .paymentOnFile
                     }
                 } catch {
-                    self.paymentState = .paymentError
+                    self?.paymentState = .paymentError
                 }
                 
             }

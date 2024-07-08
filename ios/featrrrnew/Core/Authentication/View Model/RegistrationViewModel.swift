@@ -27,7 +27,12 @@ class RegistrationViewModel: ObservableObject {
     func createUser() async throws {
         //try await AuthService.shared.createUser(email: email, password: password, username: username)
         do {
-            try await AuthService.shared.createUser(email: email, password: password, username: username, fullname: fullname)
+            let result = await PaymentService.standard.createConnectAccount(email: email, fullName: fullname)
+            let accountId = try result.get()
+            try await AuthService.shared.createUser(email: email, password: password, username: username, fullname: fullname, connectAccountId: accountId)
+        } catch let error as PayoutAccoutErrorType {
+            self.showAlert = true
+            self.authError = AuthError(authErrorCode: .userNotFound)
         } catch {
             let authError = AuthErrorCode.Code(rawValue: (error as NSError).code)
             self.showAlert = true

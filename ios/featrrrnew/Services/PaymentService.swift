@@ -26,6 +26,12 @@ struct CardInfo {
     var last4: String
 }
 
+struct ConnectAccountResponse {
+    var url: String
+    var accountId: String
+}
+
+
 enum PaymentErrorType: Error {
     case invalidUrl, missingEmail, missingFullname, alreadyPaidError, serverError, jsonError, internalError
 
@@ -42,6 +48,26 @@ enum PaymentErrorType: Error {
         case .alreadyPaidError:
             return "You have already paid for this job.  Thank you!"
             
+        }
+    }
+}
+
+enum PayoutAccoutErrorType: Error {
+    case invalidUrl, connectAccountId, alreadyExistError, serverError, jsonError, internalError
+    
+    func localizedDescription() -> String {
+        switch (self){
+            case .internalError, .serverError:
+                return "An internal error occured.  Try again later"
+            case .invalidUrl:
+                return "We were unable to contact our servers.  Contact support for assistance."
+            case .jsonError:
+                return "We were unable to contact our servers.  Contact support for assistance."
+            case .connectAccountId:
+                return "Your user account seems to be missing information.  Try to log out and log back in or contact support for further assistance"
+            case .alreadyExistError:
+                return "Account already created.  Thank you!"
+                
         }
     }
 }
@@ -79,6 +105,7 @@ class PaymentService: PaymentServiceDelegate {
             "name": "\(fullname)"
         }
         """
+        print(json)
         
         // Formulate the job data
         let parameters = json.data(using: .utf8)
@@ -88,7 +115,7 @@ class PaymentService: PaymentServiceDelegate {
         request.httpMethod = "POST"
         request.httpBody = parameters
     
-        var task = URLSession.shared.dataTask(with: request, completionHandler: { [weak self] (data, response, error) in
+        let task = URLSession.shared.dataTask(with: request, completionHandler: { [weak self] (data, response, error) in
             guard let data = data,
                   let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String : Any] else {
                 completion(.failure(.serverError))
@@ -111,6 +138,59 @@ class PaymentService: PaymentServiceDelegate {
         task.resume()
         
     }
+    
+    
+    func getConnectAccount(user: User, completion: @escaping (Result<Bool?, PayoutAccoutErrorType>) -> ()) {
+        
+        guard let url = URL(string: FirebaseFunctions.FETCH_CONNECT_ACCOUNT) else {
+            completion(.failure(.invalidUrl))
+            return
+        }
+        
+        guard let connectAccountId = user.connectAccountId else {
+            completion(.failure(.connectAccountId))
+            return
+        }
+        
+        let json = """
+        {
+            "accountId": "\(connectAccountId)"
+        }
+        """
+        
+        // Formulate the job data
+        let parameters = json.data(using: .utf8)
+        
+        var request = URLRequest(url: url)
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "POST"
+        request.httpBody = parameters
+        
+        let task = URLSession.shared.dataTask(with: request, completionHandler: { [weak self] (data, response, error) in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String : Any] else {
+                completion(.failure(.serverError))
+                return
+            }
+            
+            
+            guard let accountCompleted = json["accountCompleted"] as? Bool else {
+                completion(.failure(.jsonError))
+                return
+            }
+            print("Account Completed: \(accountCompleted)")
+            
+            guard let self = self else {
+                completion(.failure(.internalError))
+                return
+            }
+            completion(.success(accountCompleted))
+            
+        })
+        task.resume()
+        
+    }
+    
     func updateDefaultPaymentMethod(completion: @escaping (Result<Bool, PaymentErrorType>) -> ()) {
         
         fetchRefreshToken { token in
@@ -177,6 +257,87 @@ class PaymentService: PaymentServiceDelegate {
         }
         
     }
+    
+    func createConnectAccount(email: String, fullName: String) async -> Result<String, PayoutAccoutErrorType> {
+        guard let url = URL(string: FirebaseFunctions.CREATE_CONNECT_ACCOUNT) else {
+            return .failure(.invalidUrl)
+        }
+        
+        let json = """
+        {
+            "name": "\(fullName)",
+            "email": "\(email)"
+        }
+        """
+        let jsonData = json.data(using: .utf8)
+        
+        var request = URLRequest(url: url)
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "POST"
+        request.httpBody = jsonData
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let response = response as? HTTPURLResponse, (200...300) ~= response.statusCode else {
+                return .failure(.serverError)
+            }
+            
+            let res = try? JSONSerialization.jsonObject(with: data, options: []) as? [String : Any]
+
+            guard let accountId = res?["accountId"] as? String else {
+                return .failure(.serverError)
+            }
+            
+            return .success(accountId)
+            
+        } catch let error {
+            return .failure(.internalError)
+        }
+    }
+    
+    func createAccountLink(user: User) async -> Result<String, PayoutAccoutErrorType> {
+        guard let url = URL(string: FirebaseFunctions.CREATE_ACCOUNT_LINK) else {
+            return .failure(.invalidUrl)
+        }
+        
+        guard let connectAccountId = user.connectAccountId else {
+            return .failure(.connectAccountId)
+        }
+        
+        let json = """
+        {
+            "accountId": "\(connectAccountId)"
+        }
+        """
+        let jsonData = json.data(using: .utf8)
+        
+        var request = URLRequest(url: url)
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "POST"
+        request.httpBody = jsonData
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            print(response)
+            
+            guard let response = response as? HTTPURLResponse, (200...300) ~= response.statusCode else {
+                return .failure(.serverError)
+            }
+            
+            let res = try? JSONSerialization.jsonObject(with: data, options: []) as? [String : Any]
+            
+            guard let linkUrl = res?["linkUrl"] as? String else {
+                return .failure(.serverError)
+            }
+            
+            return .success(linkUrl)
+            
+        } catch let error {
+            return .failure(.internalError)
+        }
+    }
+    
     func prepareSetupIntent(user: User, completion: @escaping (Result<CustomerSheet, PaymentErrorType>) -> ()) {
         
         guard let url = URL(string: FirebaseFunctions.CREATE_SETUP_INTENT) else {
@@ -244,6 +405,7 @@ class PaymentService: PaymentServiceDelegate {
             })
             
             let customerSheet = CustomerSheet(configuration: configuration, customer: customerAdapter)
+            
             
             DispatchQueue.main.async {
                 completion(.success(customerSheet))
