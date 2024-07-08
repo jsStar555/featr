@@ -513,6 +513,7 @@ exports.stripewebhook = onRequest(async (req, res) => {
   // Return a successful response to Stripe
   res.sendStatus(200);
 });
+
 exports.requestRefundPayment = onRequest(async (req, res) => {
   try {
     const idToken = await extractToken(req);
@@ -654,6 +655,7 @@ exports.requestRefundPayment = onRequest(async (req, res) => {
     });
   }
 });
+
 exports.confirmRefundRequest = onRequest(async (req, res) => {
   try {
     const idToken = await extractToken(req);
@@ -884,5 +886,302 @@ exports.testFunction = onRequest(async (req, res) => {
     }
   } catch (err) {
     console.log("err ", err);
+  }
+});
+
+exports.createSetupIntent = onRequest(async (req, res) => {
+  const { name, email, userId } = req.body;
+
+  let existingCustomers = await stripe.customers.list({ email: email });
+  var customer = existingCustomers.data[0];
+
+  if (!existingCustomers.data.length) {
+    console.log("Creating a new customer");
+    customer = await stripe.customers.create({
+      name: name,
+      email: email,
+    });
+  }
+
+  // create ephemeral key
+  const ephemeralKey = await stripe.ephemeralKeys.create(
+    { customer: customer.id },
+    { apiVersion: "2023-08-16" }
+  );
+
+  // create intent
+  const setupIntent = await stripe.setupIntents.create({
+    payment_method_types: ["card"],
+    customer: customer.id,
+    metadata: {
+      userId: userId,
+    },
+    usage: "off_session",
+  });
+
+  res.status(200).send({
+    success: true,
+    message: "Setup Intent was successfully created",
+    setupIntent: setupIntent,
+    ephemeralKey: ephemeralKey.secret,
+    customer: existingCustomers.data[0].id,
+    publishableKey: process.env.STRIPE_PUBISHABLE_KEY,
+  });
+});
+
+exports.updateDefaultPaymentMethod = onRequest(async (req, res) => {
+  const { stripePaymentId, stripeCustomerId } = req.body;
+  const idToken = await extractToken(req);
+  await app
+    .auth()
+    .verifyIdToken(idToken)
+    .then((decodedIdToken) => {
+      userId = decodedIdToken?.uid;
+    });
+
+  if (!userId) {
+    return res.status(422).json({
+      success: false,
+      message: "The required `userId` parameter was not provided",
+    });
+  }
+  if (!stripePaymentId || !stripeCustomerId) {
+    await users.doc(userId).update({
+      stripePaymentId: null,
+      stripeCustomerId: null,
+    });
+    return res.status(200).json({
+      success: false,
+      message: "The payment method was removed for the given user",
+    });
+  }
+  const users = fireStore.collection("users");
+  await users.doc(userId).update({
+    stripePaymentId: stripePaymentId,
+    stripeCustomerId: stripeCustomerId,
+  });
+
+  return res.status(200).send({
+    success: true,
+    message: "Payment method was successfully saved for the user",
+  });
+});
+
+exports.fetchDefaultPaymentMethod = onRequest(async (req, res) => {
+  const idToken = await extractToken(req);
+  await app
+    .auth()
+    .verifyIdToken(idToken)
+    .then((decodedIdToken) => {
+      userId = decodedIdToken?.uid;
+    });
+
+  if (!userId) {
+    return res.status(422).json({
+      success: false,
+      message: "The required `userId` parameter was not provided",
+    });
+  }
+
+  const usersDoc = fireStore.collection("users");
+  const querySnapshot = await usersDoc.doc(userId).get();
+  let data = querySnapshot?.data();
+  if (data == null) {
+    return res.status(404).json({
+      message: "We were unable to find the given user: " + userId,
+    });
+  }
+  console.log("We captured the data from the database");
+  let paymentId = data.stripePaymentId;
+  if (!paymentId) {
+    return res.status(200).json({
+      success: false,
+      message:
+        "We were unable to capture the given payment ID for the given user",
+    });
+  }
+  console.log("Payment ID: " + paymentId);
+  let stripeCustomerId = data.stripeCustomerId;
+  if (!stripeCustomerId) {
+    return res.status(200).json({
+      success: false,
+      message:
+        "We were unable to find the given user with our payment provider",
+    });
+  }
+  console.log("Stripe Customer ID: " + stripeCustomerId);
+  let paymentMethod = await stripe.customers.retrievePaymentMethod(
+    stripeCustomerId,
+    paymentId
+  );
+
+  if (paymentMethod != null) {
+    return res.status(200).json({
+      success: true,
+    });
+  } else {
+    console.log("No payment method found for the given user");
+    return res.status(200).json({
+      success: false,
+      message: "No payment method found for the given user",
+    });
+  }
+});
+
+exports.customer = onRequest(async (req, res) => {
+  let existingCustomers = await stripe.customers.list({ email: email });
+
+  const { name, email } = req.body;
+  if (existingCustomers.data.length) {
+    ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: existingCustomers.data[0].id },
+      { apiVersion: "2023-08-16" }
+    );
+  } else {
+    //create customer first against email
+    const customer = await stripe.customers.create({
+      name: name,
+      email: email,
+    });
+    ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customer.id },
+      { apiVersion: "2023-08-16" }
+    );
+  }
+  res.json({
+    customer: customer.id,
+    ephemeralKeySecret: ephemeralKey.secret,
+  });
+});
+
+exports.defaultPayment = onRequest(async (req, res) => {
+  const { email } = req.body;
+  let existingCustomers = await stripe.customers.list({ email: email });
+  if (existingCustomers.data.length) {
+    customerId = existingCustomers.data[0].id;
+  } else {
+    //create customer first against email
+    const customer = await stripe.customers.create({
+      name: name,
+      email: email,
+    });
+
+    customerId = customer.id;
+  }
+
+  const paymentMethods = await stripe.customers.listPaymentMethods(customerId, {
+    limit: 1
+  });
+
+    if (
+      paymentMethods["data"] != null &&
+      paymentMethods["data"][0] != null &&
+      paymentMethods["data"][0]["id"] != null &&
+      paymentMethods["data"][0]["card"] != null &&
+      paymentMethods["data"][0]["card"]["last4"]
+    ) {
+      res.json({
+        id: paymentMethods["data"][0]["id"],
+        last_4: paymentMethods["data"][0]["card"]["last4"],
+      });
+    } else {
+      res.json({});
+    }
+});
+
+exports.createConnectAccount = onRequest(async (req, res) => {
+  try {
+    const {name, email} = req.body;
+    const account = await stripe.accounts.create({
+      email: email,
+      business_profile: {
+        name: name
+      },
+      type: 'custom',
+      capabilities: {
+        card_payments: {
+          requested: true,
+        },
+        transfers: {
+          requested: true,
+        },
+      },
+      business_type: 'individual',
+    });
+
+    if(account) {
+      return res.status(200).json({
+        success: true,
+        message: "Account connect created successfully",
+        accountId: account['id'],
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+exports.createAccountLink = onRequest(async (req, res) => {
+  try {
+    const {accountId} = req.body;
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: 'https://example.com/reauth',
+      return_url: 'https://example.com/return',
+      type: 'account_onboarding',
+    });
+
+    if(accountLink) {
+     return res.status(200).json({
+        success: true,
+        message: "Account link created successfully",
+        linkUrl: accountLink['url'],
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+exports.fetchConnectAccount = onRequest(async (req, res) => {
+  try {
+    const {accountId} = req.body;
+    const account = await stripe.accounts.retrieve(accountId)
+
+    if(account) {
+     return res.status(200).json({
+        success: true,
+        message: "Account fetched successfully",
+        accountId: account['id'],
+        accountCompleted: account['details_submitted']
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
