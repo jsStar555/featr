@@ -1307,12 +1307,12 @@ exports.transferToConnectAccount = onRequest(async (req, res) => {
     const {email, amount, accountId} = req.body;
     // const charge = await stripe.charges.create({
     //   source: source,
-    //   amount: ride.amount,
-    //   currency: ride.currency,
-    //   description: config.appName,
-    //   statement_descriptor: config.appName,
+    //   amount: amount,
+    //   currency: 'USD',
+    //   description: `Payment from Featrr ${email}`,
+    //   statement_descriptor: `Payment from Featrr ${email}`,
     //   // The `transfer_group` parameter must be a unique id for the ride; it must also match between the charge and transfer
-    //   transfer_group: ride.id
+    //   transfer_group: 
     // });
     const transfer = await stripe.transfers.create({
       amount: Math.round(Number(amount) * 100) * 0.06,
