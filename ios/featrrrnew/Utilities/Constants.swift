@@ -40,6 +40,10 @@ struct FirebaseFunctions {
     static let CREATE_CONNECT_ACCOUNT = "https://createconnectaccount-7tciwcgjna-uc.a.run.app"
     static let CREATE_ACCOUNT_LINK = "https://createaccountlink-7tciwcgjna-uc.a.run.app"
     static let FETCH_CONNECT_ACCOUNT = "https://fetchconnectaccount-7tciwcgjna-uc.a.run.app"
+    static let TRANSFER_TO_CONNECT_ACCOUNT = "http://127.0.0.1:5001/featchr-113f6/us-central1/transferToConnectAccount"
+    static let CREATE_LOGIN_LINK = "http://127.0.0.1:5001/featchr-113f6/us-central1/createLoginLink"
+    static let GET_CONNECT_ACCOUNT_BALANCE = "http://127.0.0.1:5001/featchr-113f6/us-central1/getConnectAccountBalance"
+    static let REQUEST_PAYOUT = "http://127.0.0.1:5001/featchr-113f6/us-central1/requestPayout"
     
 }
 
