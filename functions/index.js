@@ -208,7 +208,7 @@ exports.createPaymentIntent = onRequest(async (req, res) => {
 
   // Use the where() method to filter documents by the "jobId" field
   const jobDocRef = jobsCollection.doc(jobId);
-  console.log("it got here ");
+  console.log(`it got here ${amount}`);
   const jobInfoScapShot = await jobDocRef.get();
   //console.log("jobInfoScapShot ", jobInfoScapShot)
   console.log("jobInfoScapShot.exists ", jobInfoScapShot.exists);
@@ -1097,7 +1097,7 @@ exports.createConnectAccount = onRequest(async (req, res) => {
       business_profile: {
         name: name
       },
-      type: 'custom',
+      type: 'express',
       capabilities: {
         card_payments: {
           requested: true,
@@ -1132,9 +1132,44 @@ exports.createConnectAccount = onRequest(async (req, res) => {
 
 exports.createAccountLink = onRequest(async (req, res) => {
   try {
-    const {accountId} = req.body;
+    const {accountId, email, name} = req.body;
+    var account = accountId;
+    if(account == undefined || accountId == "") {
+     
+      const idToken = await extractToken(req);
+      await app
+        .auth()
+        .verifyIdToken(idToken)
+        .then((decodedIdToken) => {
+          userId = decodedIdToken?.uid;
+        });
+    
+      if (!userId) {
+        return res.status(422).json({
+          success: false,
+          message: 'An error occur',
+        });
+      }
+
+      var connectAccount = await stripe.accounts.create({
+        email: email,
+        type: 'express',
+        business_type: 'individual',
+        individual: {
+          email: email || undefined,
+          first_name: name || undefined,
+        },
+      });
+      
+      account = connectAccount.id;
+      const usersDoc = fireStore.collection("users");
+      await usersDoc.doc(userId).update({
+        connectAccountId: account,
+      });
+      
+    }
     const accountLink = await stripe.accountLinks.create({
-      account: accountId,
+      account: account,
       refresh_url: 'https://createaccountlink-7tciwcgjna-uc.a.run.app',
       return_url: 'https://example.com/return',
       type: 'account_onboarding',
@@ -1144,7 +1179,33 @@ exports.createAccountLink = onRequest(async (req, res) => {
      return res.status(200).json({
         success: true,
         message: "Account link created successfully",
-        linkUrl: accountLink['url'],
+        linkUrl: accountLink.url,
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+exports.createLoginLink = onRequest(async (req, res) => {
+  try {
+    const {accountId} = req.body;
+    const loginLink = await stripe.accounts.createLoginLink(accountId);
+
+    if(loginLink) {
+     return res.status(200).json({
+        success: true,
+        message: "Login link created successfully",
+        loginLinkUrl: loginLink.url,
       });
     }
     return res.status(422).json({
@@ -1171,6 +1232,100 @@ exports.fetchConnectAccount = onRequest(async (req, res) => {
         message: "Account fetched successfully",
         accountId: account['id'],
         accountCompleted: account['details_submitted']
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+exports.getConnectAccountBalance = onRequest(async (req, res) => {
+  try {
+    const {accountId} = req.body;
+    const balance = await stripe.balance.retrieve({
+      stripeAccount: accountId,
+    });
+
+    if(balance) {
+      const {amount, currency} = balance.available[0];
+     return res.status(200).json({
+        success: true,
+        message: "Account balance fetched successfully",
+        balance: amount,
+        currency: currency
+      });
+    }
+    return res.status(422).json({
+      success: false,
+      message: 'An error occur',
+    });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+exports.requestPayout = onRequest(async (req, res) => {
+  try {
+    const {accountId, name} = req.body;
+    const balance = await stripe.balance.retrieve({
+      stripeAccount: accountId,
+    });
+
+    const {amount, currency} = balance.available[0];
+    const payout = await stripe.payouts.create({
+      amount: amount,
+      currency: currency,
+      statement_descriptor: `${name} Featrr payout`,
+    }, {stripeAccount: accountId });
+     return res.status(200).json({
+        success: true,
+        message: `${amount} paid to your account`,
+      });
+  } catch (err) {
+    console.log("err ", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+exports.transferToConnectAccount = onRequest(async (req, res) => {
+  try {
+    const {email, amount, accountId} = req.body;
+    // const charge = await stripe.charges.create({
+    //   source: source,
+    //   amount: ride.amount,
+    //   currency: ride.currency,
+    //   description: config.appName,
+    //   statement_descriptor: config.appName,
+    //   // The `transfer_group` parameter must be a unique id for the ride; it must also match between the charge and transfer
+    //   transfer_group: ride.id
+    // });
+    const transfer = await stripe.transfers.create({
+      amount: Math.round(Number(amount) * 100) * 0.06,
+      currency: 'USD',
+      destination: accountId,
+      description: `Payment from Featrr ${email}`,
+    });
+
+    if(transfer) {
+     return res.status(200).json({
+        success: true,
+        message: "Transfer successfull",
+        transferId: transfer['id'],
       });
     }
     return res.status(422).json({
