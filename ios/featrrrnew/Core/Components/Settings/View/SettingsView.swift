@@ -67,6 +67,7 @@ class SettingsViewModel: ObservableObject {
     @Published var payoutMessage: String?
     @Published var requestPayoutState: RequestPayoutState?
     @Published var displayPopoverOpacity = 0.0
+    @Published var isSellerAccount = false
 
     init() {
         checkAccountId()
@@ -75,6 +76,8 @@ class SettingsViewModel: ObservableObject {
         getConnectAccount()
         Task {
             await getBalance()
+            await checkUserJobs()
+
         }
     }
     
@@ -112,6 +115,20 @@ class SettingsViewModel: ObservableObject {
             } catch {
                 self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
             }
+        }
+    }
+    
+    func checkUserJobs() async {
+        if let user = AuthService.shared.user {
+            do {
+                let jobs = try await JobService.standard.fetchUserJobs(user: user)
+                
+                self.isSellerAccount = jobs.count > 0
+            } catch {
+                isSellerAccount = false
+            }
+        } else {
+            isSellerAccount = false
         }
     }
     
@@ -249,7 +266,7 @@ struct SettingsView: View {
             
             List {
                     
-                if(viewModel.showMyAccount) {
+                if viewModel.showMyAccount && viewModel.isSellerAccount {
                     Button {
                         Task {
                            let loginLink = await viewModel.getLoginLink()
@@ -271,7 +288,7 @@ struct SettingsView: View {
                         }
                     }
                     
-                    if  let balance = viewModel.userBalance {
+                    if  let balance = viewModel.userBalance  {
                         if(balance.amount > 0) {
                             Button {
                                 Task {
@@ -410,7 +427,10 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .refreshable {
+            viewModel.getConnectAccount()
+            viewModel.getDefaultPayment()
             Task {
+                
                 await viewModel.getBalance()
             }
         }
