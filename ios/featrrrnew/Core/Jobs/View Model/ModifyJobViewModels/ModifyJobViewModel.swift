@@ -106,6 +106,10 @@ class ModifyJobViewModel: ObservableObject {
         if paymentState != .paymentOnFile {
             messageError += "• Provide a default payment method\n"
         }
+        
+        if connectAccountState != .accountSuccess {
+            messageError += "• Provide a payout account\n"
+        }
 
         messageError += "\nPlease resolve these issues before proceeding"
         showMessageError = true
@@ -153,6 +157,7 @@ class ModifyJobViewModel: ObservableObject {
     
     @Published var accountCompleted = false
     func getConnectAccount() {
+        connectedAccountState = .connectLoading
         if let user = AuthService.shared.user {
             PaymentService.standard.getConnectAccount(user:user) {[weak self] result in
                 do {

@@ -29,7 +29,12 @@ struct CompleteSignUpView: View {
         } label: {
             HStack {
                 Spacer()
-                Text("Complete Sign Up")
+                if(viewModel.state == .loading) {
+                    ProgressView()
+                } else {
+                    Text("Complete Sign Up")
+                }
+                
                 Spacer()
             }.modifier(FeatchrButtonModifier())
         }

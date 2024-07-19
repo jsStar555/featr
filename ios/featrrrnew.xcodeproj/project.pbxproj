@@ -353,7 +353,6 @@
 				CBCFB56C2BADDE93005F146C /* JobList */,
 				3F4DF7D02A60E6A8007167B9 /* Settings */,
 				3FF01CC92A57108700DAA045 /* PaymentSheet */,
-				CBCFB5702BADDF5B005F146C /* Payment */,
 				CBCFB5722BADDFAD005F146C /* ProfileImage */,
 			);
 			path = Components;
@@ -1019,6 +1018,7 @@
 		CBCFB5772BADE057005F146C /* AdditionalJobsList */ = {
 			isa = PBXGroup;
 			children = (
+				CBCFB5702BADDF5B005F146C /* Payment */,
 				CBCFB5782BADE05D005F146C /* View */,
 			);
 			path = AdditionalJobsList;

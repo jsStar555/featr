@@ -142,10 +142,16 @@ struct LoginView: View {
         }, label: {
             HStack {
                 Spacer()
-                Text("Log In")
-                    .font(Style.font.caption)
-                    .foregroundColor(Color.background)
-                    .padding()
+                if(viewModel.state == .loading) {
+                    ProgressView()
+                        .frame(width: 50, height: 50)
+                } else {
+                    Text("Log In")
+                        .font(Style.font.caption)
+                        .foregroundColor(Color.background)
+                        .padding()
+                }
+                    
                 Spacer()
             }
             .background(formIsValid ? Color.primary : Color.lightBackground)

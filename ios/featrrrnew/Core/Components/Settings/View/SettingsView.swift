@@ -258,6 +258,7 @@ struct SettingsView: View {
     @ObservedObject var viewModel = SettingsViewModel()
     @State private var linkUrl: URL?
     @State private var loginUrl: URL?
+    @State private var requestPayout = false
     
     var body: some View {
         VStack {
@@ -291,9 +292,7 @@ struct SettingsView: View {
                     if  let balance = viewModel.userBalance  {
                         if(balance.amount > 0) {
                             Button {
-                                Task {
-                                   await viewModel.requestPayout()
-                                }
+                                requestPayout = true
                                 
                             } label: {
                                 HStack {
@@ -434,8 +433,20 @@ struct SettingsView: View {
                 await viewModel.getBalance()
             }
         }
+        .alert(isPresented: $requestPayout) {
+            Alert(
+                title: Text("Are you sure?"),
+                primaryButton: .destructive(Text("Yes")) {
+                    Task {
+                        await viewModel.requestPayout()
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         .sheet(isPresented: $linkUrl.mappedToBool(), onDismiss: {
             linkUrl = nil
+            viewModel.getConnectAccount()
         }) {
             SafariWebView(url: linkUrl!)
                 .ignoresSafeArea()

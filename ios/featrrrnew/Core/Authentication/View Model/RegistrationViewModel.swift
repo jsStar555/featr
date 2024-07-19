@@ -11,6 +11,10 @@
 import Foundation
 import FirebaseAuth
 
+enum RegistrationState {
+    case initial, loading, success, error
+}
+
 class RegistrationViewModel: ObservableObject {
     @Published var username: String = ""
     @Published var password: String = ""
@@ -23,18 +27,23 @@ class RegistrationViewModel: ObservableObject {
     @Published var usernameValidationFailed = false
     @Published var showAlert = false
     @Published var authError: AuthError?
+    @Published var state: RegistrationState = .initial
     
     func createUser() async throws {
         //try await AuthService.shared.createUser(email: email, password: password, username: username)
         do {
+            self.state = .loading
             let result = await PaymentService.standard.createConnectAccount(email: email, fullName: fullname)
             let accountId = try result.get()
             try await AuthService.shared.createUser(email: email, password: password, username: username, fullname: fullname, connectAccountId: accountId)
+            self.state = .success
         } catch let error as PayoutAccoutErrorType {
+            self.state = .error
             self.showAlert = true
             self.authError = AuthError(authErrorCode: .userNotFound)
         } catch {
             let authError = AuthErrorCode.Code(rawValue: (error as NSError).code)
+            self.state = .error
             self.showAlert = true
             self.authError = AuthError(authErrorCode: authError ?? .userNotFound)
         }
