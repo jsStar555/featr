@@ -201,7 +201,6 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                 Task {
                    let response = await viewModel.createPayoutAccount()
                     if let response = response {
-                        print(response)
                         linkUrl = URL(string: response)
                     }
                     
@@ -324,6 +323,8 @@ struct ModifyJobView<T: ModifyJobViewModel>: View {
                 }
                 .fullScreenCover(isPresented: $linkUrl.mappedToBool(), onDismiss: {
                     linkUrl = nil
+                    viewModel.getConnectAccount()
+                    print("dismissed")
                 }) {
                     SafariWebView(url: linkUrl!)
                         .ignoresSafeArea()

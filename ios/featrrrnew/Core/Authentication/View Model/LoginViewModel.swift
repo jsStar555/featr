@@ -8,7 +8,9 @@
 import Foundation
 import FirebaseAuth
 
-
+enum LoginState {
+    case initial, loading, success, error
+}
 
 class LoginViewModel: ObservableObject {
     //@Published var errorMessage = ""
@@ -17,6 +19,7 @@ class LoginViewModel: ObservableObject {
     @Published var showAlert = false
     @Published var authError: AuthError?
     @Published var didSendResetPasswordLink: Bool = false
+    @Published var state: LoginState = .initial
     
     @MainActor
     func resetPassword(withEmail email: String) {
@@ -33,10 +36,13 @@ class LoginViewModel: ObservableObject {
     
     @MainActor
     func login(withEmail email: String, password: String) async throws {
+        state = .loading
         do {
             try await AuthService.shared.login(withEmail: email, password: password)
+            state = .success
         } catch {
             let authError = AuthErrorCode.Code(rawValue: (error as NSError).code)
+            state = .error
             self.showAlert = true
             self.authError = AuthError(authErrorCode: authError ?? .userNotFound)
         }

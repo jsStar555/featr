@@ -101,7 +101,11 @@ class PendingListItemViewModel: ObservableObject {
         case .completed:
             paymentSheet = nil
             preparingPaymentSheet = false
+            Task { [weak self] in
+                await self?.transferFunds(amount: self?.calculateCost())
+            }
             JobProposalService.standard.complete(proposalId: jobProposal.id, completionCost: calculateCost()) { [weak self] result in
+
                 
                 self?.paymentViewModel.popoverStatus = .completed
                 self?.paymentViewModel.displayPopoverOpacity = 1.0
@@ -116,6 +120,20 @@ class PendingListItemViewModel: ObservableObject {
             paymentError = error.localizedDescription
             showPaymentError = true
            
+        }
+    }
+    
+    func transferFunds(amount: Double?) async {
+        guard let toUser = try? await UserService.fetchUser(withUid: jobProposal.sellerID) else {
+            //TODO: Display an error while trying to fetch user
+            paymentError = "Can't access the current seller user's object"
+            showPaymentError = true
+            Log.d("Can't access the current seller user \(jobProposal.sellerID)")
+            return
+        }
+        
+        PaymentService.standard.transferToConnectAccount(user: toUser, amount: amount) { result in
+            print(try? result.get())
         }
     }
     
@@ -137,7 +155,7 @@ class PendingListItemViewModel: ObservableObject {
                     total += Double(storyCost)
                 }
             }
-        
+        print(total);
 //        total = total + (((total)*6)/100)
         return total
     }

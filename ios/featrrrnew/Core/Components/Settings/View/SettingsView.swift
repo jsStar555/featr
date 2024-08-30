@@ -49,6 +49,10 @@ enum ConnectAccountState {
 enum ConnectedAccountState {
     case connected, noAccountConnected, connectError, connectLoading
 }
+
+enum RequestPayoutState {
+    case loading, error, success, disabled
+}
 class SettingsViewModel: ObservableObject {
     @Published var customerSheet: CustomerSheet?
     @Published var paymentState: PaymentState = .paymentLoading
@@ -58,12 +62,96 @@ class SettingsViewModel: ObservableObject {
     @Published var showMessageError = false
     @Published var accountCompleted = false
     @Published var connectedAccountState: ConnectedAccountState = .connectLoading
+    @Published var showMyAccount: Bool = false
+    @Published var userBalance: UserBalance?
+    @Published var payoutMessage: String?
+    @Published var requestPayoutState: RequestPayoutState?
+    @Published var displayPopoverOpacity = 0.0
+    @Published var isSellerAccount = false
 
     init() {
+        checkAccountId()
         getCustomerSheet()
         getDefaultPayment() //Load the initial payment method to populate with "default" (no payment, error, payment)
         getConnectAccount()
+        Task {
+            await getBalance()
+            await checkUserJobs()
+
+        }
     }
+    
+    func checkAccountId() {
+        if let user = AuthService.shared.user {
+            showMyAccount = user.connectAccountId != nil
+        } else {
+            showMyAccount = false
+        }
+    }
+    
+    func getLoginLink() async -> String? {
+        if let user = AuthService.shared.user {
+          let result = await PaymentService.standard.createLoginLink(user: user)
+            do {
+                let loginLink =  try result.get()
+                return loginLink
+            } catch let error as PayoutAccoutErrorType {
+                self.showAlert(error.localizedDescription())
+            } catch {
+                self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
+            }
+        }
+        return nil
+    }
+    
+    func getBalance() async {
+        if let user = AuthService.shared.user {
+            let result = await PaymentService.standard.getConnectAccountBalance(user: user)
+            do {
+                let balance =  try result.get()
+                userBalance = balance
+            } catch let error as PayoutAccoutErrorType {
+                self.showAlert(error.localizedDescription())
+            } catch {
+                self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
+            }
+        }
+    }
+    
+    func checkUserJobs() async {
+        if let user = AuthService.shared.user {
+            do {
+                let jobs = try await JobService.standard.fetchUserJobs(user: user)
+                
+                self.isSellerAccount = jobs.count > 0
+            } catch {
+                isSellerAccount = false
+            }
+        } else {
+            isSellerAccount = false
+        }
+    }
+    
+    func requestPayout() async {
+        requestPayoutState = .loading
+        if let user = AuthService.shared.user {
+            let result = await PaymentService.standard.requestPayout(user: user)
+            do {
+                let message =  try result.get()
+                displayPopoverOpacity = 1.0
+                requestPayoutState = .success
+                payoutMessage = message
+                await getBalance()
+            } catch let error as PayoutAccoutErrorType {
+                requestPayoutState = .error
+                self.showAlert(error.localizedDescription())
+            } catch {
+                requestPayoutState = .error
+                self.showAlert("An internal error occured.  Try again in a few minutes or contact support")
+            }
+        }
+    }
+    
     func getCustomerSheet() {
         if let user = AuthService.shared.user {
             PaymentService.standard.prepareSetupIntent(user: user) { result in
@@ -169,6 +257,8 @@ struct SettingsView: View {
     @State private var showingCustomerSheet = false
     @ObservedObject var viewModel = SettingsViewModel()
     @State private var linkUrl: URL?
+    @State private var loginUrl: URL?
+    @State private var requestPayout = false
     
     var body: some View {
         VStack {
@@ -176,6 +266,55 @@ struct SettingsView: View {
             Divider()
             
             List {
+                    
+                if viewModel.showMyAccount && viewModel.isSellerAccount {
+                    Button {
+                        Task {
+                           let loginLink = await viewModel.getLoginLink()
+                            if let loginLink = loginLink {
+                                linkUrl = URL(string: loginLink)
+                            }
+                        }
+                        
+                    } label: {
+                        HStack {
+                            Image(systemName: "dollarsign")
+                            Text("My Account")
+                            Spacer()
+                            if let balance = viewModel.userBalance {
+                                Text((balance.amount/100) .formatted(.currency(code: balance.currency)))
+                            }
+                            
+                            
+                        }
+                    }
+                    
+                    if  let balance = viewModel.userBalance  {
+                        if(balance.amount > 0) {
+                            Button {
+                                requestPayout = true
+                                
+                            } label: {
+                                HStack {
+                                    Image(systemName: "line.diagonal.arrow")
+                                    Text("Request Payout")
+                                    Spacer()
+                                    switch (viewModel.requestPayoutState) {
+                                        case .loading:
+                                            ProgressView()
+                                        case .error:
+                                            Chip(text: "Error", style: .cancel)
+                                        default:
+                                            EmptyView()
+                                    }
+                                    
+                                }
+                            }
+                        }
+                    }
+                    
+                   
+                }
                
                     Button {
                         viewModel.getDefaultPayment()
@@ -208,7 +347,6 @@ struct SettingsView: View {
                     Task {
                         let response = await viewModel.createPayoutAccount()
                         if let response = response {
-                            print(response)
                             linkUrl = URL(string: response)
                         }
                     }
@@ -266,6 +404,17 @@ struct SettingsView: View {
             }
             .listStyle(PlainListStyle())
             
+            if let message = viewModel.payoutMessage {
+                VStack {
+                    Text(message)
+                }
+                .frame(width: 250, height: 150)
+                .background(.ultraThinMaterial)
+                .mask(RoundedRectangle(cornerRadius: .cornerM))
+                .opacity(viewModel.displayPopoverOpacity)
+                .animation(.easeIn(duration: 0.25), value: viewModel.displayPopoverOpacity)
+            }
+            
             if let sheet = viewModel.customerSheet {
                 VStack{}.customerSheet(
                     isPresented: $showingCustomerSheet,
@@ -276,11 +425,45 @@ struct SettingsView: View {
             
         }
         .navigationTitle("Settings")
+        .refreshable {
+            viewModel.getConnectAccount()
+            viewModel.getDefaultPayment()
+            Task {
+                
+                await viewModel.getBalance()
+            }
+        }
+        .alert(isPresented: $requestPayout) {
+            Alert(
+                title: Text("Are you sure?"),
+                primaryButton: .destructive(Text("Yes")) {
+                    Task {
+                        await viewModel.requestPayout()
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         .sheet(isPresented: $linkUrl.mappedToBool(), onDismiss: {
             linkUrl = nil
+            viewModel.getConnectAccount()
         }) {
             SafariWebView(url: linkUrl!)
                 .ignoresSafeArea()
+        }
+        .sheet(isPresented: $loginUrl.mappedToBool(), onDismiss: {
+            loginUrl = nil
+        }) {
+            SafariWebView(url: loginUrl!)
+                .ignoresSafeArea()
+        }
+        .onChange(of: viewModel.displayPopoverOpacity) { value in
+            if value == 1.0 {
+                //Fade out after a specified duration
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: { // possibly a risk for a strong reference cycle
+                    self.viewModel.displayPopoverOpacity = 0.0
+                })
+            }
         }
         .onAppear {
             viewModel.getConnectAccount()
